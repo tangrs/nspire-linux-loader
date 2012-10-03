@@ -25,13 +25,11 @@
 
 #define DEFAULT_KERNEL_LOCATION "/documents/linux/zImage.tns"
 #define DEFAULT_INITRD_LOCATION "/documents/linux/initrd.tns"
-#define DEFAULT_CMDLINE "earlyprintk debug keep_bootcon"
+#define DEFAULT_CMDLINE "earlyprintk debug console=ttyAMA0"
 #define MACHINE_ID  3503
 #define MAX_KERNEL_SIZE 0x400000
 #define MAX_RAMDISK_SIZE 0x400000
 #define PAGE_SIZE   4096
-
-#define NEWLINE "\r\n"
 
 static void *ramdisk = NULL;
 static int ramdiskSize = -1;
@@ -113,6 +111,10 @@ static void *buildParameters() {
     return atag;
 }
 
+static void reloc(char *dst, char *src, size_t size) {
+    while (size--) *dst = *src;
+}
+
 int main(int argc, char *argv[]) {
     void *parameters;
     char *kernel = DEFAULT_KERNEL_LOCATION;
@@ -121,17 +123,20 @@ int main(int argc, char *argv[]) {
     printk("==== TI-NSPIRE Linux Loader ====" NEWLINE);
     if (argc > 1 && argv[1]) kernel = argv[1];
     parameters = buildParameters();
-    printk("ATAGs loaded to %p" NEWLINE, (void*)parameters);
+    printk("ATAGs loaded to 0x%p" NEWLINE, (void*)parameters);
     entry = (void (*)(int, int, void*))loadKernel(kernel);
-    printk("Kernel loaded to %p" NEWLINE, (void*)entry);
+    printk("Kernel loaded to 0x%p" NEWLINE, (void*)entry);
 
     //printk("Attempting to load initrd" NEWLINE);
     //loadRamdisk(DEFAULT_INITRD_LOCATION);
     //if (ramdisk) printk("Initrd loaded to %p" NEWLINE, (void*)ramdisk);
 
+    printk("Moving ATAGs to 0x10000100" NEWLINE);
+    reloc((char*)0x10000100, parameters, 0x8000-0x100);
+    printk("OK, let's go!" NEWLINE);
     clear_cache();
     disableDcacheAndMmu();
 
-    entry(0, MACHINE_ID, parameters);
+    entry(0, MACHINE_ID, (void*)0x10000100);
     __builtin_unreachable();
 }

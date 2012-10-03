@@ -21,6 +21,7 @@
 
 #include "atag_tags.h"
 #include "atag.h"
+#include "debug.h"
 
 int atagBegin(void **head, void **last) {
     struct atag * begin = malloc(2);
@@ -103,7 +104,7 @@ int atagAdd(void **head, void **last, int tagid, ...) {
             break;
         case ATAG_CMDLINE:
             cmdline = va_arg(ap, char*);
-            tag.hdr.size = 2 + (strlen(cmdline) + sizeof(uint32_t)) / sizeof(uint32_t);
+            tag.hdr.size = 2 + ((strlen(cmdline) + sizeof(uint32_t)) / sizeof(uint32_t));
             break;
         default:
             return -1;
@@ -121,6 +122,7 @@ int atagAdd(void **head, void **last, int tagid, ...) {
         struct atag *t = *last;
         strcpy(t->u.cmdline.cmdline, cmdline);
     }
+    if (tagid == ATAG_NONE) tag.hdr.size = 0;
 
     *last = (char*)*last + tagSize;
 

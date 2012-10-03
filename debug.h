@@ -16,4 +16,5 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define NEWLINE "\r\n"
 void printk(const char * format, ...);

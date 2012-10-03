@@ -25,7 +25,7 @@
 
 #define DEFAULT_KERNEL_LOCATION "/documents/linux/zImage.tns"
 #define DEFAULT_INITRD_LOCATION "/documents/linux/initrd.tns"
-#define DEFAULT_CMDLINE "earlyprintk debug console=ttyAMA0"
+#define DEFAULT_CMDLINE "earlyprintk debug keep_bootcon"
 #define MACHINE_ID  3503
 #define MAX_KERNEL_SIZE 0x400000
 #define MAX_RAMDISK_SIZE 0x400000
@@ -52,13 +52,12 @@ static void loadRamdisk(const char * filename) {
         fclose(f);
         exit(-1);
     }
-    ramdisk = malloc(size + PAGE_SIZE);
+    ramdisk = malloc(size);
     if (!ramdisk) {
         fclose(f);
         printk("Could allocate %x bytes for ramdisk. Not loading ramdisk" NEWLINE, size);
         return;
     }
-    ramdisk = (void*)( ((unsigned)ramdisk + PAGE_SIZE) & (PAGE_SIZE-1));
     fread(ramdisk, 1, MAX_RAMDISK_SIZE, f);
     fclose(f);
     ramdiskSize = size;
@@ -85,11 +84,12 @@ static void* loadKernel(const char * filename) {
     }
     fread(data, 1, size, f);
     fclose(f);
-    //unsigned start = ((unsigned*)data)[10], end = ((unsigned*)data)[11];
-    //if ((end - start) != size) {
-    //    ramdisk = (char*)data + (end - start);
-    //    ramdiskSize = size - (end - start);
-    //}
+    unsigned start = ((unsigned*)data)[10], end = ((unsigned*)data)[11];
+    if ((end - start) != size) {
+        ramdisk = (char*)data + (end - start);
+        ramdiskSize = size - (end - start);
+        printk("Found ramdisk appended to kernel of size %dbytes at %p" NEWLINE, size, (void*)ramdisk);
+    }
     return data;
 }
 
@@ -102,8 +102,9 @@ static void *buildParameters() {
     atagAdd(&atag, &last, ATAG_CMDLINE, DEFAULT_CMDLINE);
 
     if (ramdisk && ramdiskSize > 0) {
+        printk("Added ATAGs for ramdisk" NEWLINE);
         atagAdd(&atag, &last, ATAG_RAMDISK, 0, MAX_RAMDISK_SIZE/1024, 0);
-        atagAdd(&atag, &last, ATAG_INITRD2, (uint32_t)ramdisk, ramdiskSize);
+        atagAdd(&atag, &last, ATAG_INITRD2, 0x14000000-MAX_RAMDISK_SIZE, ramdiskSize);
     }
 
     atagEnd(&atag, &last);
@@ -122,17 +123,21 @@ int main(int argc, char *argv[]) {
 
     printk("==== TI-NSPIRE Linux Loader ====" NEWLINE);
     if (argc > 1 && argv[1]) kernel = argv[1];
-    parameters = buildParameters();
-    printk("ATAGs loaded to 0x%p" NEWLINE, (void*)parameters);
     entry = (void (*)(int, int, void*))loadKernel(kernel);
     printk("Kernel loaded to 0x%p" NEWLINE, (void*)entry);
+    printk("Attempting to load initrd" NEWLINE);
+    loadRamdisk(DEFAULT_INITRD_LOCATION);
+    if (ramdisk) printk("Initrd loaded to %p" NEWLINE, (void*)ramdisk);
 
-    //printk("Attempting to load initrd" NEWLINE);
-    //loadRamdisk(DEFAULT_INITRD_LOCATION);
-    //if (ramdisk) printk("Initrd loaded to %p" NEWLINE, (void*)ramdisk);
-
+    parameters = buildParameters();
+    printk("ATAGs loaded to 0x%p" NEWLINE, (void*)parameters);
     printk("Moving ATAGs to 0x10000100" NEWLINE);
     reloc((char*)0x10000100, parameters, 0x4000-0x100);
+    if (ramdisk) {
+        printk("Moving ramdisk to 0x%x"NEWLINE, 0x14000000-MAX_RAMDISK_SIZE);
+        reloc((char*)(0x14000000-MAX_RAMDISK_SIZE), ramdisk, ramdiskSize);
+    }
+
     printk("OK, let's go!" NEWLINE);
     clear_cache();
     disableDcacheAndMmu();

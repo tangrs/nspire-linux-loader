@@ -117,12 +117,12 @@ int atagAdd(void **head, void **last, int tagid, ...) {
     *head = new;
     *last = (char*)new + oldSize;
 
+    if (tagid == ATAG_NONE) tag.hdr.size = 0;
     memcpy(*last, &tag, tagSize);
     if (cmdline) {
         struct atag *t = *last;
         strcpy(t->u.cmdline.cmdline, cmdline);
     }
-    if (tagid == ATAG_NONE) tag.hdr.size = 0;
 
     *last = (char*)*last + tagSize;
 

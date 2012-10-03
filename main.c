@@ -112,7 +112,7 @@ static void *buildParameters() {
 }
 
 static void reloc(char *dst, char *src, size_t size) {
-    while (size--) *dst = *src;
+    while (size--) *dst++ = *src++;
 }
 
 int main(int argc, char *argv[]) {
@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
     //if (ramdisk) printk("Initrd loaded to %p" NEWLINE, (void*)ramdisk);
 
     printk("Moving ATAGs to 0x10000100" NEWLINE);
-    reloc((char*)0x10000100, parameters, 0x8000-0x100);
+    reloc((char*)0x10000100, parameters, 0x4000-0x100);
     printk("OK, let's go!" NEWLINE);
     clear_cache();
     disableDcacheAndMmu();

@@ -1,5 +1,7 @@
 # TI-NSPIRE Linux In-Place Bootloader
 
+**This bootloader is deprecated. Please use [version 2](https://github.com/tangrs/nspire-linux-loader2) of this bootloader instead**
+
 Boots a Linux kernel from inside the CAS software. For CX only right now (RAM sizes and machine ID are hardcoded).
 
 ## Usage
